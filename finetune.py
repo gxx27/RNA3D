@@ -240,17 +240,6 @@ def main():
         handlers=[logging.StreamHandler(sys.stdout)],
     )
 
-    training_args = TrainingArguments(
-        output_dir='./test_config',
-        overwrite_output_dir=True,
-        do_train=True,
-        evaluation_strategy="epoch",
-        per_device_train_batch_size=20,
-        learning_rate=2e-5,
-        num_train_epochs=10,
-        weight_decay=1e-2,
-    )
-
     log_level = training_args.get_process_log_level()
     logger.setLevel(log_level)
     datasets.utils.logging.set_verbosity(log_level)
@@ -285,41 +274,29 @@ def main():
     if data_args.max_train_samples is None:
         logger.info(f"Will train on full trainning dataset!!!")
 
-    tokenizer = T5Tokenizer.from_pretrained('/home/gx/zjl/RNA3D/config')
+    tokenizer = T5Tokenizer.from_pretrained('./config')
 
-
-    # train_dataset = load_dataset('json', data_files='/home/gx/zjl/RNA3D/dataset/dataset.json')
-    # trainset = train_dataset['train']
-    # trainset = trainset.map(
-    #     map_function,
-    #     batched=True,
-    #     batch_size=10
-    # )
-    # trainset = trainset.train_test_split(test_size=0.2)
     data_args.tokenizer = tokenizer
-    train_dataset = MSADataSet(data_args, '/home/gx/zjl/RNA3D/dataset/dataset.fasta', data_args.num_alignments)
+    train_dataset = MSADataSet(data_args, data_args.num_alignments)
 
     valid_ratio = 0.2
     valid_size = int(valid_ratio * len(train_dataset))
     train_size = len(train_dataset) - valid_size
     train_dataset, valid_dataset = random_split(train_dataset, [train_size, valid_size])
     
-    config = T5Config.from_pretrained('/home/gx/zjl/RNA3D/config')
+    config = T5Config.from_pretrained('./config')
 
-    config.seq_per_msa = data_args.num_alignments # 这里更改
-    config.vocab_size = len(tokenizer) # 这里更改
+    config.seq_per_msa = data_args.num_alignments
+    config.vocab_size = len(tokenizer)
     model = MSA_AUGMENTOR(config=config)
     n_params = sum(dict((p.data_ptr(), p.numel()) for p in model.parameters()).values())
     logger.info(f"Training new model from scratch - Total size={n_params/2**20:.2f}M params")
     model.resize_token_embeddings(len(tokenizer))
-    msadata_collator = DataCollatorForMSA(tokenizer) # 这里更改
-    # msadata_collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=False, mlm_probability=0.15)
-
+    msadata_collator = DataCollatorForMSA(tokenizer)
     # Set decoder_start_token_id
     
     if model.config.decoder_start_token_id is None:
         raise ValueError("Make sure that `config.decoder_start_token_id` is correctly defined")
-    # train_dataset = torch.load('') # 这里更改
 
     trainer = Trainer(
         model=model,

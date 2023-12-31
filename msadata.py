@@ -2,12 +2,8 @@ import re
 import argparse
 import torch
 import random
-import numpy as np
-from vocab import WordVocab
 from typing import Sequence, Tuple, List, Union
-from transformers import T5Tokenizer
 from torch.utils.data import Dataset
-from datasets import load_dataset
 
 RawMSA = Sequence[Tuple[str, str]]
 
@@ -72,7 +68,8 @@ class BatchConverter(object):
         # RoBERTa uses an eos token, while ESM-1 does not.
         batch_size = len(raw_batch)
         # batch_labels, seq_str_list = zip(*raw_batch)
-        seq_str_list = zip(*raw_batch)
+        # seq_str_list = zip(*raw_batch)
+        seq_str_list = raw_batch
         seq_encoded_list = [self.tokenizer(self._tokenize(seq_str)).input_ids for seq_str in seq_str_list] # 向量化 'A U G C' -> [220, 115, 56, 89]
         max_len = max(len(seq_encoded) for seq_encoded in seq_encoded_list)
         tokens = torch.empty(
@@ -146,23 +143,18 @@ class DataCollatorForMSA(BatchConverter):
     def __call__(self, batch): # example可以是一个dict 
         input_ids = self.msa_batch_convert([example["input_ids"] for example in batch]) # convert source 原序列
         labels = self.msa_batch_convert([example["labels"] for example in batch]) # convert target 目标序列
-        import ipdb
-        ipdb.set_trace()
         labels[labels==self.tokenizer.pad_token_id]=-100 # 计算损失时忽略填充部分
         attention_mask = input_ids.ne(self.tokenizer.pad_token_id).type_as(input_ids) # input_ids中不等于填充标记的地方作为encoder注意力掩码
         decoder_attention_mask = labels.ne(self.tokenizer.pad_token_id).type_as(input_ids) # labels中不等于填充标记的地方作为decoder注意力掩码
         return {'input_ids':input_ids,'labels':labels,"attention_mask":attention_mask,"decoder_attention_mask":decoder_attention_mask}
 
 class MSADataSet(Dataset):
-    def __init__(self, data_args, data_path, num_msa_files):
+    def __init__(self, data_args, num_msa_files):
         super().__init__()
         self.data_args = data_args
-        self.data_path = data_path
-        self.num_msa_files = num_msa_files # 数据应该没问题 映射可能出问题
+        self.data_path = self.data_args.train_file
+        self.num_msa_files = num_msa_files
         
-        # text = '-AUCG'
-        # vocab = WordVocab(text) # 建议用原来的tokenizer
-        # self.vocab = vocab
         self.tokenizer = data_args.tokenizer
         
         self.max_seq_len = 0
@@ -183,29 +175,26 @@ class MSADataSet(Dataset):
                     
             if align:
                 self.lines.append(align)
+        
+        self.data = []      
+        for msa in self.lines:
+            result = {}
+            msa_mask = []
+            msa_label = []
+            for seq in msa:
+                mask = self.random_word(seq)
+                msa_mask.append(mask[:-1])
+                msa_label.append(list(seq[:-1]))
+
+            result['input_ids'] = msa_mask
+            result['labels'] = msa_label
+            self.data.append(result)
 
     def __len__(self):
         return len(self.lines)
 
     def __getitem__(self, index):
-        result = {}
-        msa = self.lines[index] # num_alignments * sequence_len
-        msa_mask = []
-        msa_label = []
-        for seq in msa:
-            mask = self.random_word(seq)
-            msa_mask.append(mask[:-1])
-            msa_label.append(list(seq[:-1]))
-        # msa_random, msa_label = self.random_word(msa)
-        
-        # if len(msa) < self.max_seq_len: # padding
-        #     padding = [self.vocab.pad_index for _ in range(self.seq_len - len(msa))]
-        #     msa_random.extend(padding)
-        #     msa_label.extend(padding)
-        result['input_ids'] = msa_mask
-        result['labels'] = msa_label
-
-        return result
+        return self.data[index]
         
     def random_word(self, sentence):
         # tokens = sentence.split()
@@ -240,74 +229,5 @@ class MSADataSet(Dataset):
 
         # return tokens, output_label
         return tokens
-
-# text = '-AUCG'
-# vocab = WordVocab(text)
-# num_alignments = 10 # to be changed
-
-# def random_word(sentence):
-#     # tokens = sentence.split()
-#     tokens = list(sentence)
-#     output_label = []    
-    
-#     for i, token in enumerate(tokens):
-#         prob = random.random()
-#         if prob < 0.15: # 15% to mask
-#             prob /= 0.15
-
-#             # 80% randomly change token to mask token
-#             if prob < 0.8:
-#                 tokens[i] = vocab.itos[vocab.mask_index]
-
-#             # 10% randomly change token to random token
-#             elif prob < 0.9:
-#                 tokens[i] = vocab.itos[random.randrange(len(vocab))]
-
-#             # 10% randomly change token to current token
-#             else:
-#                 tokens[i] = vocab.itos[vocab.stoi.get(token, vocab.unk_index)]
-#             output_label.append(vocab.itos[vocab.stoi.get(token, vocab.unk_index)])
-
-#         else:
-#             tokens[i] = vocab.itos[vocab.stoi.get(token, vocab.unk_index)]
-#             output_label.append(vocab.itos[0])
-
-#     return tokens, output_label
-    
-# def map_function(example):
-#     batched_msa = example['msa'] # batch_size * len(alignments) * seq_len
-#     sequence = {}
-#     sequence['input_ids'] = []
-#     sequence['labels'] = []
-#     for msa in batched_msa:
-#         msa = msa.split() # len(alignments) * seq_len
-#         src = []
-#         tgt = []
-#         for i, seq in enumerate(msa): # mask for every sequence
-#             if i == num_alignments:
-#                 break
-#             src_seq, tgt_seq = random_word(seq)
-#             src.append(src_seq)
-#             # tgt.append(tgt_seq)
-#             tgt.append(src_seq)
-            
-#         sequence['input_ids'].append(src)
-#         sequence['labels'].append(tgt)
-
-#     return sequence
-
-
-if __name__ == '__main__':
-    data_args = parse_args()
-    text = '-AUCG'
-    vocab = WordVocab(text)
-    data_args.vocab = vocab
-    data_path = './dataset/raw_data.fasta'
-    num_msa_files = 1
-    tokenizer = T5Tokenizer.from_pretrained('./config')
-    dataset = MSADataSet(data_args=data_args, data_path=data_path, num_msa_files=num_msa_files)
-    import ipdb
-    ipdb.set_trace()
-    print(len(dataset))
     
         

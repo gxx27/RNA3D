@@ -1,10 +1,19 @@
-CUDA_VISIBLE_DEVICES=0,1 python finetune.py --output_dir ./test_config \
+python finetune.py --output_dir ./result_config \
     --dataset_name test \
-    --train_file './dataset/test.fasta' \
+    --train_file './dataset/dataset.fasta' \
     --remove_unused_columns False \
-    # --do_train \
-    # --overwrite_output_dir \
-    # --per_device_train_batch_size 10 \
-    # --fp16 True \
-    # --num_train_epochs 10 \
-    # --learning_rate 0.1
+    --do_train True \
+    --overwrite_output_dir True \
+    --per_device_train_batch_size 10 \
+    --fp16 True \
+    --num_train_epochs 100 \
+    --max_steps 100000 \
+    --learning_rate 2e-5 \
+    --weight_decay 1e-2 \
+    --evaluation_strategy steps \
+    --eval_steps 1000 \
+    --save_strategy 'steps' \
+    --save_steps 10000 \
+    --logging_strategy epoch \
+    --logging_dir './logs' \
+    --num_alignments 10
