@@ -1,8 +1,7 @@
 import re
 import argparse
 import torch
-import random
-import math
+import pickle
 from typing import Sequence, Tuple, List, Union
 from torch.utils.data import Dataset
 
@@ -164,101 +163,14 @@ class MSADataSet(Dataset):
         
         self.tokenizer = data_args.tokenizer
         
-        # self.max_seq_len = 0
-        self.length = iter_count(self.data_path) # 得到数据集长度
-        align_len = math.ceil(self.length / self.num_msa_files)
-        self.lines = [None] * align_len
-        align = []
-        count = 0
-        with open(self.data_path) as f:
-            for i, line in enumerate(f):                
-                align.append(line)
-    
-                if (i+1) % self.num_msa_files == 0:
-                    self.lines[count] = align
-                    align = []
-                    count += 1
-                    
-            if align:
-                self.lines[count] = align
-        # self.data = []      
-        # for msa in self.lines:
-        #     result = {}
-        #     msa_mask = []
-        #     msa_label = []
-        #     for seq in msa:
-        #         mask = self.random_word(seq)
-        #         msa_mask.append(mask[:-1])
-        #         msa_label.append(list(seq[:-1]))
-
-        #     result['input_ids'] = msa_mask
-        #     result['labels'] = msa_label
-        #     self.data.append(result)
+        with open(self.data_path, 'rb') as f:
+            self.data = pickle.load(f)
 
     def __len__(self):
-        # return len(self.lines)
-        return self.length
+        return len(self.data)
 
     def __getitem__(self, index):
-        # return self.data[index]
-        sequence = {}
-        msa = self.lines[index]
-        msa_mask = []
-        msa_label = []
-        
-        # max_seqlen = max(len(msa[0]) for msa in raw_batch)
-        
-        for seq in msa:
-            mask = self.random_word(seq)
-            
-            mask = mask[:-1]
-            seq = list(seq[:-1])
-            
-            # if len(mask) < max_length:
-            #     mask += [self.tokenizer.pad_token] * (max_length - len(mask))
-            #     seq += [self.tokenizer.pad_token] * (max_length - len(seq))
-            
-            msa_mask.append(mask)
-            msa_label.append(seq)
-
-        sequence['input_ids'] = msa_mask
-        sequence['labels'] = msa_label
-        # return self.data[index]
-        return sequence
-        
-    def random_word(self, sentence):
-        # tokens = sentence.split()
-        tokens = list(sentence)
-        # output_label = []
-        
-        for i, token in enumerate(tokens):
-            prob = random.random()
-            if prob < 0.15: # 15% to mask
-                prob /= 0.15
-
-                # 80% randomly change token to mask token
-                if prob < 0.8:
-                    # tokens[i] = self.vocab.itos[self.vocab.mask_index] # '<mask>'
-                    tokens[i] = self.tokenizer.additional_special_tokens[0]
-
-                # 10% randomly change token to random token
-                elif prob < 0.9:
-                    # tokens[i] = self.vocab.itos[random.randrange(len(self.vocab))] # 随便选一个
-                    tokens[i] = self.tokenizer.additional_special_tokens[random.randrange(len(self.tokenizer.additional_special_tokens))]
-
-                # 10% randomly change token to current token
-                else:
-                    # tokens[i] = self.vocab.itos[self.vocab.stoi.get(token, self.vocab.unk_index)] # 当前的
-                    pass
-                # output_label.append(self.vocab.itos[self.vocab.stoi.get(token, self.vocab.unk_index)])
-
-            else: # 不进行掩码操作
-                # tokens[i] = self.vocab.itos[self.vocab.stoi.get(token, self.vocab.unk_index)]
-                pass
-                # output_label.append(self.vocab.itos[0])
-
-        # return tokens, output_label
-        return tokens
+        return self.data[index]
     
 def iter_count(file_name):
     from itertools import (takewhile, repeat)

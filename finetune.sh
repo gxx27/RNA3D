@@ -1,6 +1,6 @@
 python finetune.py --output_dir ./result_config \
     --dataset_name test \
-    --train_file './dataset/dataset1.fasta' \
+    --train_file './dataset/data.pkl' \
     --remove_unused_columns False \
     --do_train True \
     --overwrite_output_dir True \
