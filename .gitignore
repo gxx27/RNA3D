@@ -2,3 +2,4 @@ __pycache__
 config
 dataset
 test_config
+result_config

@@ -2,6 +2,7 @@ import re
 import argparse
 import torch
 import random
+import math
 from typing import Sequence, Tuple, List, Union
 from torch.utils.data import Dataset
 
@@ -109,7 +110,13 @@ class DataCollatorForMSA(BatchConverter):
             raw_batch = inputs  # type: ignore
         batch_size = len(raw_batch) # 20
         max_alignments = max(len(msa) for msa in raw_batch) # 3
-        max_seqlen = max(len(msa[0]) for msa in raw_batch) # 213
+        # max_seqlen = max(len(msa[0]) for msa in raw_batch) # 213
+
+        max_seqlen = max(len(seq) for msa in raw_batch for seq in msa)
+
+        for msa in raw_batch: # padding
+            for seq in msa:
+                seq += [self.tokenizer.pad_token] * (max_seqlen - len(seq))
 
         tokens = torch.empty(
             (
@@ -157,44 +164,67 @@ class MSADataSet(Dataset):
         
         self.tokenizer = data_args.tokenizer
         
-        self.max_seq_len = 0
-        
-        self.lines = []
+        # self.max_seq_len = 0
+        self.length = iter_count(self.data_path) # 得到数据集长度
+        align_len = math.ceil(self.length / self.num_msa_files)
+        self.lines = [None] * align_len
         align = []
+        count = 0
         with open(self.data_path) as f:
             for i, line in enumerate(f):                
-                align.append(line) # question
+                align.append(line)
     
                 if (i+1) % self.num_msa_files == 0:
-                    self.lines.append(align)
+                    self.lines[count] = align
                     align = []
-                
-                seq_len = len(line)
-                if seq_len > self.max_seq_len:
-                    self.max_seq_len = seq_len
+                    count += 1
                     
             if align:
-                self.lines.append(align)
-        
-        self.data = []      
-        for msa in self.lines:
-            result = {}
-            msa_mask = []
-            msa_label = []
-            for seq in msa:
-                mask = self.random_word(seq)
-                msa_mask.append(mask[:-1])
-                msa_label.append(list(seq[:-1]))
+                self.lines[count] = align
+        # self.data = []      
+        # for msa in self.lines:
+        #     result = {}
+        #     msa_mask = []
+        #     msa_label = []
+        #     for seq in msa:
+        #         mask = self.random_word(seq)
+        #         msa_mask.append(mask[:-1])
+        #         msa_label.append(list(seq[:-1]))
 
-            result['input_ids'] = msa_mask
-            result['labels'] = msa_label
-            self.data.append(result)
+        #     result['input_ids'] = msa_mask
+        #     result['labels'] = msa_label
+        #     self.data.append(result)
 
     def __len__(self):
-        return len(self.lines)
+        # return len(self.lines)
+        return self.length
 
     def __getitem__(self, index):
-        return self.data[index]
+        # return self.data[index]
+        sequence = {}
+        msa = self.lines[index]
+        msa_mask = []
+        msa_label = []
+        
+        # max_seqlen = max(len(msa[0]) for msa in raw_batch)
+        
+        for seq in msa:
+            mask = self.random_word(seq)
+            
+            mask = mask[:-1]
+            seq = list(seq[:-1])
+            
+            # if len(mask) < max_length:
+            #     mask += [self.tokenizer.pad_token] * (max_length - len(mask))
+            #     seq += [self.tokenizer.pad_token] * (max_length - len(seq))
+            
+            msa_mask.append(mask)
+            msa_label.append(seq)
+
+        sequence['input_ids'] = msa_mask
+        sequence['labels'] = msa_label
+        # return self.data[index]
+        return sequence
         
     def random_word(self, sentence):
         # tokens = sentence.split()
@@ -230,4 +260,9 @@ class MSADataSet(Dataset):
         # return tokens, output_label
         return tokens
     
-        
+def iter_count(file_name):
+    from itertools import (takewhile, repeat)
+    buffer = 32768 * 32768
+    with open(file_name) as f:
+        buf_gen = takewhile(lambda x: x, (f.read(buffer) for _ in repeat(None)))
+        return sum(buf.count('\n') for buf in buf_gen)      
