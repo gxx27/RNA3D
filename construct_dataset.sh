@@ -1,0 +1,1 @@
+python construct_hfdataset.py --folder_path './msa_folder' --num_seq_per_msa 15

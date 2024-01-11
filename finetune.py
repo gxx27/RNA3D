@@ -274,7 +274,7 @@ def main():
     if data_args.max_train_samples is None:
         logger.info(f"Will train on full trainning dataset!!!")
 
-    tokenizer = T5Tokenizer.from_pretrained('./config')
+    tokenizer = T5Tokenizer.from_pretrained('/home/gx/zjl/RNA3D/config')
 
     data_args.tokenizer = tokenizer
     train_dataset = MSADataSet(data_args, data_args.num_alignments)
@@ -284,7 +284,7 @@ def main():
     train_size = len(train_dataset) - valid_size
     train_dataset, valid_dataset = random_split(train_dataset, [train_size, valid_size])
     
-    config = T5Config.from_pretrained('./config')
+    config = T5Config.from_pretrained('/home/gx/zjl/RNA3D/config')
 
     config.seq_per_msa = data_args.num_alignments
     config.vocab_size = len(tokenizer)

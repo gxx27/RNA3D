@@ -113,9 +113,6 @@ class DataCollatorForMSA(BatchConverter):
 
         max_seqlen = max(len(seq) for msa in raw_batch for seq in msa)
 
-        for msa in raw_batch: # padding
-            for seq in msa:
-                seq += [self.tokenizer.pad_token] * (max_seqlen - len(seq))
 
         tokens = torch.empty(
             (
@@ -161,8 +158,6 @@ class MSADataSet(Dataset):
         self.data_path = self.data_args.train_file
         self.num_msa_files = num_msa_files
         
-        self.tokenizer = data_args.tokenizer
-        
         with open(self.data_path, 'rb') as f:
             self.data = pickle.load(f)
 
@@ -171,10 +166,3 @@ class MSADataSet(Dataset):
 
     def __getitem__(self, index):
         return self.data[index]
-    
-def iter_count(file_name):
-    from itertools import (takewhile, repeat)
-    buffer = 32768 * 32768
-    with open(file_name) as f:
-        buf_gen = takewhile(lambda x: x, (f.read(buffer) for _ in repeat(None)))
-        return sum(buf.count('\n') for buf in buf_gen)      

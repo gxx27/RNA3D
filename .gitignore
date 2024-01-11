@@ -3,3 +3,5 @@ config
 dataset
 test_config
 result_config
+msa_folder
+msa_15
