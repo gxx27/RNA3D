@@ -1,4 +1,6 @@
 # RND 3D prediction project
+**2024.1.11更新**
+
 目前进度：24GB显存无法进行预训练
 
 增加了数据的构造 包括pickle版本的和huggingface.dataset版本的
