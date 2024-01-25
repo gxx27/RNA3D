@@ -59,9 +59,9 @@ if __name__ == '__main__':
                     sequences.clear()
                     result = {}
      
-    # with open(msa_path+'/data.pkl', 'wb') as f:
-    #     pickle.dump(data, f)    
-    with open(msa_path+'/data.json', 'w') as f:
-        json.dump(data, f)
+    with open(msa_path+'/data.pkl', 'wb') as f:
+        pickle.dump(data, f)    
+    # with open(msa_path+'/data.json', 'w') as f:
+    #     json.dump(data, f)
         
     print('process complete!')

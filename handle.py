@@ -5,7 +5,7 @@ def read_fasta(
     path,
     keep_gaps=True,
     keep_insertions=True,
-    to_upper=False,
+    to_upper=True,
 ):
     with open(path, "r") as f:
         for result in read_alignment_lines(
@@ -18,7 +18,7 @@ def read_alignment_lines(
     lines,
     keep_gaps=True,
     keep_insertions=True,
-    to_upper=False,
+    to_upper=True,
 ):
     seq = desc = None
 
